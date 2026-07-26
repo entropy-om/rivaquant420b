@@ -24,12 +24,16 @@ GPU_TYPE_ID = os.environ.get("RIVAQUANT_GPU_TYPE", "NVIDIA GeForce RTX 4090")
 # torch.cuda.is_available() came back False with "CUDA unknown error" on
 # TWO separately-provisioned pods that landed on the same physical host —
 # a real driver/runtime mismatch, not a one-off bad host.
-# cu1300 tags aren't cached widely enough on community-cloud hosts yet
-# (3 straight "machine does not have the resources" errors, unrelated to
-# actual GPU availability — a pull/cache issue for a less-common tag).
-# cu1281 is old enough to be commonly pre-pulled, new enough to actually
-# init against a CUDA-13.0-capable driver (unlike cu118, which didn't).
-IMAGE = "runpod/pytorch:1.1.0-cu1281-torch280-ubuntu2204"
+# Every newer runpod/pytorch tag (cu1281, cu1290, cu1300 — 5 tried) failed
+# to even deploy on community cloud: "machine does not have the resources"
+# regardless of disk size requested, while this exact cu118 image deployed
+# instantly twice. Real constraint: community-cloud RTX 4090 hosts appear
+# to only schedule this small set of pre-cached images. Staying on the
+# image that actually deploys; launch.sh reinstalls a CUDA-13-matched
+# torch build over it instead (see the pip install line there) — fixing
+# "which CUDA runtime torch uses" is decoupled from "which image the
+# scheduler will accept."
+IMAGE = "runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04"
 SSH_PUBKEY_PATH = os.path.expanduser("~/.ssh/id_ed25519.pub")
 POD_NAME = f"rivaquant420b-{STAGE}"
 
