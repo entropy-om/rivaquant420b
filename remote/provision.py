@@ -58,7 +58,7 @@ def create_pod() -> str:
     # runpod/pytorch image never opened port 22 without this.
     start_cmd = (
         "bash -c '"
-        "apt update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server; "
+        "apt update && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server rsync tmux; "
         "mkdir -p ~/.ssh && chmod 700 ~/.ssh; "
         f"echo \\\"{pubkey}\\\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys; "
         "service ssh start; "
