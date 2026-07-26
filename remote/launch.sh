@@ -18,16 +18,21 @@ ssh -o StrictHostKeyChecking=no -p "$PORT" "root@$IP" bash -s <<REMOTE
 set -e
 cd /workspace/rivaquant420b
 pip install -q -r requirements.txt
-# The base image's bundled torch (built for CUDA 11.8) can't init a CUDA
-# context on this host's much newer driver — confirmed by hand:
-# torch.cuda.is_available() came back False with "CUDA unknown error"
-# even though nvidia-smi saw the GPU fine. Swap in a build matched to a
-# CUDA runtime the driver actually supports, and verify it BEFORE
-# launching training — training silently falling back to CPU already
-# happened once; fail loud here instead of finding out from a slow log.
-pip install -q --index-url https://download.pytorch.org/whl/cu128 torch
+# Community-cloud hosts have different drivers (seen both 560.35 and
+# 580.126 across two provisions) — the bundled cu118 torch works fine on
+# an older driver but hit "CUDA unknown error" on the newer one, even
+# though nvidia-smi saw the GPU fine either way. Don't force a reinstall
+# unconditionally (a cu128 build needs driver >=570, which would BREAK
+# the 560-driver host that already works) — check first, only fix what's
+# actually broken on this specific box.
+if python3 -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)"; then
+  echo "stock torch already sees the GPU, no reinstall needed"
+else
+  echo "stock torch can't see the GPU on this host, reinstalling against cu124"
+  pip install -q --index-url https://download.pytorch.org/whl/cu124 torch
+fi
 python3 -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)" \
-  || { echo "FATAL: torch.cuda.is_available() is False after the cu128 reinstall — not launching on CPU silently."; exit 1; }
+  || { echo "FATAL: torch.cuda.is_available() is still False — not launching on CPU silently."; exit 1; }
 echo "GPU confirmed: \$(python3 -c 'import torch; print(torch.cuda.get_device_name(0))')"
 mkdir -p /workspace/rivaquant420b-out
 tmux new-session -d -s rivaquant420b "
