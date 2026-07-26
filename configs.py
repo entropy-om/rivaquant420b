@@ -98,11 +98,14 @@ STAGES = {
     # model reported exactly this count via model.num_params().
     "quantal": Stage(
         name="quantal",
-        config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=10, n_head=39, n_embd=2496, block_size=512),
+        config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=10, n_head=39, n_embd=2496, block_size=512,
+                                binary_weights=True),
         trained=False,
         note=f"UNTRAINED shape. {_params(10, 2496):,} params — closest sane-architecture exact integer "
              "to a 1,000,000,000 target (see comment above). Deliberately CPU-trained (OVH compute-"
-             "optimized, no GPU) — a real, explicit choice, not a fallback.",
+             "optimized, no GPU) — a real, explicit choice, not a fallback. binary_weights=True: "
+             "provably 1-bit (no possible zero), not the nominally-ternary-but-measured-~binary "
+             "scheme the 162m->420b ladder uses — matches PeetPedro/unit's framing (\"a 1-bit model\").",
     ),
 }
 

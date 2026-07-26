@@ -15,11 +15,19 @@ artifact backs.** Until a checkpoint exists at a given stage, that stage is
 ## What this actually is right now
 
 A parametrized version of the exact architecture that already works —
-`model/bitlinear.py` and `model/transformer.py` are unchanged from
-`PeetPedro/rivaquant`, not reinvented. `configs.py` names five stages on
-the 162m->420b ladder (`162m`, `1b`, `8b`, `70b`, `420b`), plus one
-sibling one-off (`quantal`) — all run through the same `train/train.py`;
-only the shape (`n_layer`/`n_embd`/`n_head`) changes.
+`model/bitlinear.py` and `model/transformer.py` started unchanged from
+`PeetPedro/rivaquant`, not reinvented, plus one additive change: measured
+against a real trained checkpoint that `weight_quant`'s "ternary"
+sign()-based quantization has, in practice, *always* been ~binary (9
+exact zeros out of 162,129,408 weight elements — 0.0000055%). Added
+`binary_weight_quant` (provably binary, zero impossible by construction)
+and a `RivaQuantConfig.binary_weights` flag so a stage can opt into that
+explicitly rather than leaving it a floating-point accident. Only
+`quantal` uses it; the 162m->420b ladder is untouched, still the
+original recipe. `configs.py` names five stages on that ladder (`162m`,
+`1b`, `8b`, `70b`, `420b`), plus this one sibling one-off (`quantal`) —
+all run through the same `train/train.py`; only the shape
+(`n_layer`/`n_embd`/`n_head`) and, for quantal, that one flag, change.
 
 | stage | params (actual) | status |
 |---|---|---|

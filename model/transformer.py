@@ -1,5 +1,8 @@
 """RivaQuant: a small, from-scratch decoder-only transformer with BitNet
-b1.58 ternary weights in every attention/MLP projection. Standard nanoGPT-
+b1.58 nominally-ternary weights in every attention/MLP projection (measured
+~binary in practice — see bitlinear.py's module docstring; RivaQuantConfig.
+binary_weights switches to provably-binary for stages that want that made
+explicit rather than left as a floating-point accident). Standard nanoGPT-
 style block structure (pre-norm, RoPE, causal self-attention) — the only
 architectural departure from a normal small LM is BitLinear replacing
 nn.Linear everywhere except the token embedding, which stays full precision
@@ -23,6 +26,11 @@ class RivaQuantConfig:
     n_embd: int = 768
     block_size: int = 1024
     dropout: float = 0.0
+    # False (default): weight_quant — nominally ternary, measured ~binary in
+    # practice (see bitlinear.py). True: binary_weight_quant — provably
+    # binary, no possible zero. Only "quantal" sets this True; the 162m->
+    # 420b ladder keeps the original BitNet b1.58 recipe unchanged.
+    binary_weights: bool = False
 
 
 def _rotate_half(x: torch.Tensor) -> torch.Tensor:
@@ -49,8 +57,8 @@ class CausalSelfAttention(nn.Module):
         assert cfg.n_embd % cfg.n_head == 0
         self.n_head = cfg.n_head
         self.head_dim = cfg.n_embd // cfg.n_head
-        self.qkv_proj = BitLinear(cfg.n_embd, 3 * cfg.n_embd)
-        self.out_proj = BitLinear(cfg.n_embd, cfg.n_embd)
+        self.qkv_proj = BitLinear(cfg.n_embd, 3 * cfg.n_embd, binary=cfg.binary_weights)
+        self.out_proj = BitLinear(cfg.n_embd, cfg.n_embd, binary=cfg.binary_weights)
         self.dropout = cfg.dropout
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -77,8 +85,8 @@ class MLP(nn.Module):
     def __init__(self, cfg: RivaQuantConfig):
         super().__init__()
         hidden = 4 * cfg.n_embd
-        self.fc1 = BitLinear(cfg.n_embd, hidden)
-        self.fc2 = BitLinear(hidden, cfg.n_embd)
+        self.fc1 = BitLinear(cfg.n_embd, hidden, binary=cfg.binary_weights)
+        self.fc2 = BitLinear(hidden, cfg.n_embd, binary=cfg.binary_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.fc2(F.gelu(self.fc1(x)))
@@ -105,7 +113,7 @@ class RivaQuant(nn.Module):
         self.tok_emb = nn.Embedding(cfg.vocab_size, cfg.n_embd)  # full precision: a lookup table
         self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_layer))
         self.ln_f = RMSNorm(cfg.n_embd)
-        self.head = BitLinear(cfg.n_embd, cfg.vocab_size)
+        self.head = BitLinear(cfg.n_embd, cfg.vocab_size, binary=cfg.binary_weights)
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
