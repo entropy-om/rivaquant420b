@@ -1,0 +1,6 @@
+train/data/
+*.pt
+__pycache__/
+.pod_info.json
+
+artifacts/
