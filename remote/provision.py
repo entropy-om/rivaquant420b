@@ -24,7 +24,7 @@ GPU_TYPE_ID = os.environ.get("RIVAQUANT_GPU_TYPE", "NVIDIA GeForce RTX 4090")
 # torch.cuda.is_available() came back False with "CUDA unknown error" on
 # TWO separately-provisioned pods that landed on the same physical host —
 # a real driver/runtime mismatch, not a one-off bad host.
-IMAGE = "runpod/pytorch:1.1.0-cu1300-torch291-ubuntu2204"
+IMAGE = "runpod/pytorch:1.1.0-cu1300-torch291-ubuntu2404"  # ubuntu2204 tag doesn't exist for cu1300
 SSH_PUBKEY_PATH = os.path.expanduser("~/.ssh/id_ed25519.pub")
 POD_NAME = f"rivaquant420b-{STAGE}"
 
