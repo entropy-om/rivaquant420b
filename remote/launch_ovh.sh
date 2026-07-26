@@ -36,10 +36,20 @@ mkdir -p /home/ubuntu/rivaquant420b-out
 # tmux spawns a fresh shell that does NOT inherit this script's venv
 # activation — use the venv's own python binary directly instead of
 # relying on \`source\` running again inside the tmux pane.
+# BATCH_SIZE=2/GRAD_ACCUM=16 (effective batch still 32, same as the
+# default 8/4): the default 8 micro-batch OOM-killed the first attempt at
+# ~30GB RSS on this box's 32GB total (dmesg confirmed it by hand — a
+# ~1B-param model's fp32 weights+grad+Adam-states alone is ~16GB before
+# any activation memory, and BitLinear's STE keeps extra copies around
+# for the backward pass on top of that). GRA9's own quota caps this
+# account at 44GB total in this region, so a bigger box isn't available
+# here — smaller micro-batch is the actual fix, not more RAM.
 tmux new-session -d -s rivaquant420b_quantal "
   cd /home/ubuntu/rivaquant420b &&
   /home/ubuntu/rivaquant420b/.venv/bin/python3 train/data.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log &&
-  RIVAQUANT_STAGE=$STAGE RIVAQUANT_OUT=/home/ubuntu/rivaquant420b-out PYTHONPATH=/home/ubuntu/rivaquant420b /home/ubuntu/rivaquant420b/.venv/bin/python3 train/train.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log
+  RIVAQUANT_STAGE=$STAGE RIVAQUANT_OUT=/home/ubuntu/rivaquant420b-out PYTHONPATH=/home/ubuntu/rivaquant420b \\
+  RIVAQUANT_BATCH_SIZE=2 RIVAQUANT_GRAD_ACCUM_STEPS=16 \\
+  /home/ubuntu/rivaquant420b/.venv/bin/python3 train/train.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log
 "
 echo "launched in tmux session 'rivaquant420b_quantal'"
 REMOTE
