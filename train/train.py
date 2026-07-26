@@ -19,7 +19,7 @@ from model import RivaQuant, RivaQuantConfig
 from configs import get_stage
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-OUT_DIR = os.environ.get("RIVAQUANT_OUT", "/workspace/rivaquant-out")
+OUT_DIR = os.environ.get("RIVAQUANT_OUT", "/workspace/rivaquant420b-out")
 STATUS_PATH = os.path.join(OUT_DIR, "status.json")
 LOG_PATH = os.path.join(OUT_DIR, "train.log")
 CKPT_PATH = os.path.join(OUT_DIR, "checkpoint.pt")
