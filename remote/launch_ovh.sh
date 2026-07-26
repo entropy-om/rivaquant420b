@@ -54,11 +54,23 @@ mkdir -p /home/ubuntu/rivaquant420b-out
 # data.py has no logging of its own (just print()/progress bars) so tee
 # is its only persistence -- only pipe data.py's stdout through tee, not
 # train.py's (that would double-write every line to the same file).
+#
+# MAX_STEPS=2000 (not the 20000 default): measured, not guessed — step 0
+# alone took ~2m8s on this box (already the biggest compute-optimized
+# flavor this account's quota allows in GRA9; every bigger flavor exceeds
+# the 44GB regional RAM ceiling, and OVH has no self-service quota-
+# increase API, checked directly). 20000 steps at that rate is ~28 days;
+# 2000 is ~2.8 days, checkpointed every 100 steps (~3.3h) instead of the
+# default 250 (~8h+) so real progress is actually saved along the way.
+# Resumable later via train.py's checkpoint/resume path if more training
+# is wanted after this.
 tmux new-session -d -s rivaquant420b_quantal "
   cd /home/ubuntu/rivaquant420b &&
   /home/ubuntu/rivaquant420b/.venv/bin/python3 train/data.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log &&
   RIVAQUANT_STAGE=$STAGE RIVAQUANT_OUT=/home/ubuntu/rivaquant420b-out PYTHONPATH=/home/ubuntu/rivaquant420b \\
   RIVAQUANT_BATCH_SIZE=2 RIVAQUANT_GRAD_ACCUM_STEPS=16 RIVAQUANT_LOG_INTERVAL=1 \\
+  RIVAQUANT_MAX_STEPS=2000 RIVAQUANT_EVAL_INTERVAL=100 RIVAQUANT_CKPT_INTERVAL=100 \\
+  RIVAQUANT_WARMUP_STEPS=100 \\
   /home/ubuntu/rivaquant420b/.venv/bin/python3 train/train.py
 "
 echo "launched in tmux session 'rivaquant420b_quantal'"
