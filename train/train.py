@@ -36,6 +36,13 @@ BLOCK_SIZE = int(os.environ.get("RIVAQUANT_BLOCK_SIZE", str(STAGE.config.block_s
 BATCH_SIZE = int(os.environ.get("RIVAQUANT_BATCH_SIZE", "8"))
 GRAD_ACCUM_STEPS = int(os.environ.get("RIVAQUANT_GRAD_ACCUM_STEPS", "4"))
 MAX_STEPS = int(os.environ.get("RIVAQUANT_MAX_STEPS", "20000"))
+# Was hardcoded to 50 — fine on GPU (a step takes seconds), but on a slow
+# CPU run a single step can take many minutes, so a 50-step log/status
+# cadence can leave the public status.json (and anything reading it, like
+# a monitoring dashboard) showing stale data for hours with no way to
+# tell "still running" from "actually stuck." Configurable so a slow run
+# can log every step instead.
+LOG_INTERVAL = int(os.environ.get("RIVAQUANT_LOG_INTERVAL", "50"))
 EVAL_INTERVAL = int(os.environ.get("RIVAQUANT_EVAL_INTERVAL", "250"))
 CKPT_INTERVAL = int(os.environ.get("RIVAQUANT_CKPT_INTERVAL", "250"))
 LR = float(os.environ.get("RIVAQUANT_LR", "3e-4"))
@@ -123,7 +130,7 @@ def main() -> None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step()
 
-        if step % 50 == 0:
+        if step % LOG_INTERVAL == 0:
             log(f"step {step}/{MAX_STEPS}  train_loss {train_loss:.4f}  lr {lr_at(step):.2e}")
             write_status(stage="training", step=step, max_steps=MAX_STEPS,
                           train_loss=train_loss, best_val_loss=best_val)

@@ -35,10 +35,15 @@ python3 -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)" 
   || { echo "FATAL: torch.cuda.is_available() is still False — not launching on CPU silently."; exit 1; }
 echo "GPU confirmed: \$(python3 -c 'import torch; print(torch.cuda.get_device_name(0))')"
 mkdir -p /workspace/rivaquant420b-out
+# data.py has no logging of its own (just print()/progress bars), so tee
+# is its only persistence. train.py's own log() already writes every line
+# to train.log directly -- piping its stdout through tee -a to the SAME
+# path would double-write every line. Let train.py's stdout go to the
+# tmux pane only (still visible via tmux attach / capture-pane).
 tmux new-session -d -s rivaquant420b "
   cd /workspace/rivaquant420b &&
   python3 train/data.py 2>&1 | tee -a /workspace/rivaquant420b-out/train.log &&
-  RIVAQUANT_STAGE=$STAGE PYTHONPATH=/workspace/rivaquant420b python3 train/train.py 2>&1 | tee -a /workspace/rivaquant420b-out/train.log
+  RIVAQUANT_STAGE=$STAGE PYTHONPATH=/workspace/rivaquant420b python3 train/train.py
 "
 echo "launched in tmux session 'rivaquant420b' (stage=$STAGE)"
 REMOTE

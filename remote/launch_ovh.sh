@@ -44,12 +44,22 @@ mkdir -p /home/ubuntu/rivaquant420b-out
 # for the backward pass on top of that). GRA9's own quota caps this
 # account at 44GB total in this region, so a bigger box isn't available
 # here — smaller micro-batch is the actual fix, not more RAM.
+# LOG_INTERVAL=1: on GPU the default 50-step cadence is fine (a step is
+# seconds); on this CPU box a step can be minutes, so 50-step granularity
+# left status.json (and anything reading it, like the monitoring
+# dashboard) showing the same stale step for close to two hours with no
+# way to tell "still running" from "actually stuck." Log every step here.
+#
+# train.py's own log() already writes every line to train.log directly;
+# data.py has no logging of its own (just print()/progress bars) so tee
+# is its only persistence -- only pipe data.py's stdout through tee, not
+# train.py's (that would double-write every line to the same file).
 tmux new-session -d -s rivaquant420b_quantal "
   cd /home/ubuntu/rivaquant420b &&
   /home/ubuntu/rivaquant420b/.venv/bin/python3 train/data.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log &&
   RIVAQUANT_STAGE=$STAGE RIVAQUANT_OUT=/home/ubuntu/rivaquant420b-out PYTHONPATH=/home/ubuntu/rivaquant420b \\
-  RIVAQUANT_BATCH_SIZE=2 RIVAQUANT_GRAD_ACCUM_STEPS=16 \\
-  /home/ubuntu/rivaquant420b/.venv/bin/python3 train/train.py 2>&1 | tee -a /home/ubuntu/rivaquant420b-out/train.log
+  RIVAQUANT_BATCH_SIZE=2 RIVAQUANT_GRAD_ACCUM_STEPS=16 RIVAQUANT_LOG_INTERVAL=1 \\
+  /home/ubuntu/rivaquant420b/.venv/bin/python3 train/train.py
 "
 echo "launched in tmux session 'rivaquant420b_quantal'"
 REMOTE
