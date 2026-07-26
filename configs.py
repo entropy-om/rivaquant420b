@@ -6,11 +6,11 @@ Only shape changes: n_layer / n_embd / n_head. head_dim is pinned to 128
 (standard practice) for every stage except 162M, which keeps its own
 already-proven head_dim=64 rather than being retrofit to match.
 
-Param counts below are the ACTUAL result of each shape (2*vocab*n_embd for
-the untied token embedding + output head, plus 12*n_layer*n_embd^2 for the
-attention+MLP projections), not a number force-fit to the stage's own
+Param counts below are the ACTUAL result of each shape — matches
+model.num_params() exactly (embedding + head + attention/MLP projections
++ every RMSNorm weight vector), not a number force-fit to the stage's own
 label. "8b" is a roadmap stage name, not a promise of exactly 8.00e9
-parameters — the real count for its shape is 6.85B, stated honestly here
+parameters — the real count for its shape is 6.86B, stated honestly here
 so nothing downstream has to guess or round.
 
 162M is the only stage that has actually been trained (PeetPedro/rivaquant,
@@ -36,7 +36,16 @@ class Stage:
 
 
 def _params(n_layer: int, n_embd: int, vocab: int = VOCAB_SIZE) -> int:
-    return 2 * vocab * n_embd + n_layer * 12 * n_embd**2
+    # Matches model.num_params() exactly (verified against two live runs:
+    # 162m reported 162,213,888, quantal reported 998,714,496 — both match
+    # this formula bit for bit). An earlier version of this function
+    # omitted the RMSNorm weight vectors (one per BitLinear call, plus
+    # Block's ln1/ln2, plus the model's own ln_f) and undercounted every
+    # stage below by n_embd*(9*n_layer+2) — found by comparing this file's
+    # claimed count against the real, running model, not by inspection.
+    big = 2 * vocab * n_embd + n_layer * 12 * n_embd**2
+    norms = n_embd * (9 * n_layer + 2)
+    return big + norms
 
 
 STAGES = {
@@ -44,7 +53,8 @@ STAGES = {
         name="162m",
         config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=12, n_head=12, n_embd=768, block_size=256),
         trained=True,
-        note="PROVEN. 162,129,408 params. val ppl 5.455, TinyStories, 17,500 steps. "
+        note=f"PROVEN. {_params(12, 768):,} params (matches the live run's own "
+             "model.num_params() exactly). val ppl 5.455, TinyStories, 17,500 steps. "
              "This is the pipeline's own regression test, not a placeholder.",
     ),
     "1b": Stage(
@@ -57,14 +67,14 @@ STAGES = {
         name="8b",
         config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=32, n_head=32, n_embd=4096, block_size=2048),
         trained=False,
-        note=f"UNTRAINED shape. {_params(32, 4096):,} params (~6.85B) — Llama-3-8B-shaped (depth/width), "
+        note=f"UNTRAINED shape. {_params(32, 4096):,} params (~6.86B) — Llama-3-8B-shaped (depth/width), "
              "not param-count-matched to it (different vocab, no GQA, no tied embeddings here).",
     ),
     "70b": Stage(
         name="70b",
         config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=80, n_head=64, n_embd=8192, block_size=2048),
         trained=False,
-        note=f"UNTRAINED shape. {_params(80, 8192):,} params (~65.2B) — Llama-2-70B-shaped.",
+        note=f"UNTRAINED shape. {_params(80, 8192):,} params (~65.3B) — Llama-2-70B-shaped.",
     ),
     "420b": Stage(
         name="420b",
@@ -78,12 +88,14 @@ STAGES = {
     # "quantal" — a sibling one-off, not a rung on the 162m->420b ladder.
     # Target: exactly 1,000,000,000 params. No integer (n_layer, n_embd)
     # shape with a standard head_dim hits that exactly — checked
-    # numerically, not assumed. This is the closest real match found with
-    # a sane depth/width ratio and head_dim=64: 998,484,864, off by
-    # 1,515,136 (99.848% of the way there). Forcing an exact hit meant an
-    # absurd shape (337 layers x 485-wide, or 5 layers x 3328-wide) —
-    # architecturally broken just to satisfy a digit. The honest number,
-    # not a fudged one, same rule as every other stage in this file.
+    # numerically (including the RMSNorm fix above), not assumed. This is
+    # the closest real match with a sane depth/width ratio and
+    # head_dim=64: 998,714,496, off by 1,285,504 (99.871% of the way
+    # there). Forcing an exact hit meant an absurd shape (hundreds of
+    # layers at a sliver of width) — architecturally broken just to
+    # satisfy a digit. The honest number, not a fudged one, same rule as
+    # every other stage in this file. Confirmed live: the actual running
+    # model reported exactly this count via model.num_params().
     "quantal": Stage(
         name="quantal",
         config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=10, n_head=39, n_embd=2496, block_size=512),

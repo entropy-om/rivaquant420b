@@ -16,17 +16,26 @@ artifact backs.** Until a checkpoint exists at a given stage, that stage is
 
 A parametrized version of the exact architecture that already works —
 `model/bitlinear.py` and `model/transformer.py` are unchanged from
-`PeetPedro/rivaquant`, not reinvented. `configs.py` names five stages
-(`162m`, `1b`, `8b`, `70b`, `420b`) that all run through the same
-`train/train.py`; only the shape (`n_layer`/`n_embd`/`n_head`) changes.
+`PeetPedro/rivaquant`, not reinvented. `configs.py` names five stages on
+the 162m->420b ladder (`162m`, `1b`, `8b`, `70b`, `420b`), plus one
+sibling one-off (`quantal`) — all run through the same `train/train.py`;
+only the shape (`n_layer`/`n_embd`/`n_head`) changes.
 
 | stage | params (actual) | status |
 |---|---|---|
-| 162m | 162,129,408 | **trained** — val ppl 5.455, TinyStories, 17,500 steps |
-| 1b | 1,413,812,224 (~1.41B) | untrained shape, not started |
-| 8b | 6,854,156,288 (~6.85B) | untrained shape, not started |
-| 70b | 65,247,920,128 (~65.2B) | untrained shape, not started |
-| 420b | 407,521,230,848 (~407.5B) | untrained shape, not started |
+| 162m | 162,213,888 | **trained** — val ppl 5.455, TinyStories, 17,500 steps |
+| 1b | 1,414,258,688 (~1.41B) | untrained shape, not started |
+| 8b | 6,855,344,128 (~6.86B) | untrained shape, not started |
+| 70b | 65,253,834,752 (~65.3B) | untrained shape, not started |
+| 420b | 407,539,843,072 (~407.5B) | untrained shape, not started |
+| quantal | 998,714,496 | **training** — OVH compute-optimized (CPU, intentional, no GPU); closest sane-architecture exact integer to a 1,000,000,000 target |
+
+(The `params` column was corrected 2026-07-26: an earlier version of the
+formula in `configs.py` omitted RMSNorm weight vectors and undercounted
+every stage — found by comparing this file's claimed count against two
+live runs' own `model.num_params()`. The 162m and quantal rows above are
+confirmed against real, running models; 1b/8b/70b/420b are the same
+corrected formula applied to untrained shapes.)
 
 The `1b`/`8b`/`70b`/`420b` labels are roadmap stage names, not exact
 parameter promises — each is a real, precedented depth/width shape (see
