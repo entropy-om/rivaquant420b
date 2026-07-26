@@ -75,6 +75,23 @@ STAGES = {
              "per the handoff doc. Calling this stage \"420b\" is a roadmap label, not a claim this shape "
              "or anything trained under it exists yet.",
     ),
+    # "quantal" — a sibling one-off, not a rung on the 162m->420b ladder.
+    # Target: exactly 1,000,000,000 params. No integer (n_layer, n_embd)
+    # shape with a standard head_dim hits that exactly — checked
+    # numerically, not assumed. This is the closest real match found with
+    # a sane depth/width ratio and head_dim=64: 998,484,864, off by
+    # 1,515,136 (99.848% of the way there). Forcing an exact hit meant an
+    # absurd shape (337 layers x 485-wide, or 5 layers x 3328-wide) —
+    # architecturally broken just to satisfy a digit. The honest number,
+    # not a fudged one, same rule as every other stage in this file.
+    "quantal": Stage(
+        name="quantal",
+        config=RivaQuantConfig(vocab_size=VOCAB_SIZE, n_layer=10, n_head=39, n_embd=2496, block_size=512),
+        trained=False,
+        note=f"UNTRAINED shape. {_params(10, 2496):,} params — closest sane-architecture exact integer "
+             "to a 1,000,000,000 target (see comment above). Deliberately CPU-trained (OVH compute-"
+             "optimized, no GPU) — a real, explicit choice, not a fallback.",
+    ),
 }
 
 
